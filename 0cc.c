@@ -20,6 +20,8 @@ struct Token {
 	char *str;		//Token string
 };
 
+char *user_input; //Input program
+
 Token *token; //Current token
 
 
@@ -27,6 +29,21 @@ void error(char *fmt, ...)
 {
 	va_list ap;
 	va_start(ap, fmt);
+	vfprintf(stderr, fmt, ap);
+	fprintf(stderr, "\n");
+	exit(1);
+}
+
+//Reports an error location
+void error_at(char *loc, char *fmt, ...)
+{
+	va_list ap;
+	va_start(ap, fmt);
+
+	int pos = loc - user_input;
+	fprintf(stderr, "%s\n", user_input);
+	fprintf(stderr, "%*s", pos, " ");
+	fprintf(stderr, "^ ");
 	vfprintf(stderr, fmt, ap);
 	fprintf(stderr, "\n");
 	exit(1);
@@ -45,7 +62,7 @@ bool consume(char op)
 void expect(char op)
 {
 	if (token->kind != TK_RESERVED || token->str[0] != op)
-		error("expected '%c'", op);
+		error_at(token->str,"expected '%c'", op);
 	token = token->next;
 }
 
@@ -53,7 +70,7 @@ void expect(char op)
 int expect_number()
 {
 	if (token->kind != TK_NUM)
-		error("expected a number");
+		error_at(token->str, "expected a number");
 	int val = token->val;
 	token = token->next;
 	return val;
@@ -64,6 +81,7 @@ bool at_eof()
 	return token->kind == TK_EOF;
 }
 
+//Create a new token and connect it to 'cur'
 Token *new_token(Tokenkind kind, Token *cur, char *str)
 {
 	Token *tok = calloc(1, sizeof(Token));
@@ -100,7 +118,7 @@ Token *tokenize(char *p)
 			continue;
 		}
 
-		error("invalid token");
+		error_at(p, "invalid token");
 	}
 
 	new_token(TK_EOF, cur, p);
@@ -114,8 +132,9 @@ int main(int argc, char **argv)
 		error("%s: invalid arguments", argv[0]);
 		return 1;
 	}
-
-	token = tokenize(argv[1]);
+	
+	user_input = argv[1];
+	token = tokenize(user_input);
 
 	printf(".intel_syntax noprefix\n");
 	printf(".globl main\n");
