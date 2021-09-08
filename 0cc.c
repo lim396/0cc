@@ -105,7 +105,7 @@ Token *tokenize(char *p)
 			continue ;
 		}
 
-		if (*p == '+' || *p == '-')
+		if (strchr("+-*/()", *p)) //Punctuator
 		{
 			cur = new_token(TK_RESERVED, cur, p++);
 			continue ;
@@ -123,6 +123,92 @@ Token *tokenize(char *p)
 
 	new_token(TK_EOF, cur, p);
 	return head.next;
+}
+
+typedef enum {
+	ND_ADD, // +
+	ND_SUB, // -
+	ND_MUL, // *
+	ND_DIV, // /
+	ND_NUM, // Integer
+} Nodekind;
+
+typedef struct Node Node;
+struct Node {
+	Nodekind kind;
+	Node *lhs;
+	Node *rhs;
+	int val;
+};
+
+Node *new_node(Nodekind kind)
+{
+	Node *node = calloc(1, sizeof(Node));
+	node->kind = kind;
+	return node;
+}
+
+Node *new_binary(Nodekind kind, Node *lhs, Node *rhs)
+{
+	Node *node = new_node(kind);
+	node->lhs = lhs;
+	node->rhs = rhs;
+	return node;
+}
+
+Node *new_num(int val)
+{
+	Node *node = new_node(ND_NUM);
+	node->val = val;
+	return node;
+}
+
+Node *mul();
+Node *primary();
+
+// expr = mul ("+" mul | "-" mul)*
+Node *expr()
+{
+	Node *node = mul();
+
+	for (;;)
+	{
+		if (consume('+'))
+			node = new_binary(ND_ADD, node, mul());
+		else if (consume('-'))
+			node = new_binary(ND_SUB, node, mul());
+		else
+			return node;
+	}
+}
+
+// mul = primary ("*" primary | "/" primary)*
+Node *mul()
+{
+	Node *node = primary();
+
+
+	for (;;)
+	{
+		if (consume('*'))
+			node = new_binary(ND_ADD, node, primary());
+		else if (consume('/'))
+			node = new_binary(ND_SUB, node, primary());
+		else
+			return node;
+	}
+}
+
+// primary = "(" expr ")" | num
+Node *primary()
+{
+	if (consume('('))
+	{
+		Node *node = expr();
+		expect(')');
+		return node;
+	}
+	return new_num(expect_number());
 }
 
 int main(int argc, char **argv)
