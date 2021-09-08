@@ -5,6 +5,9 @@
 #include <stdarg.h>
 #include <stdbool.h>
 
+//
+// Tokenizer
+//
 typedef enum {
 	TK_RESERVED, //keywords or punctuators
 	TK_NUM,		 //Integer literals
@@ -125,6 +128,9 @@ Token *tokenize(char *p)
 	return head.next;
 }
 
+//
+// Parser
+//
 typedef enum {
 	ND_ADD, // +
 	ND_SUB, // -
@@ -209,6 +215,41 @@ Node *primary()
 		return node;
 	}
 	return new_num(expect_number());
+}
+
+//
+// Code generator
+//
+void gen(Node *node)
+{
+	if (node->kind == ND_NUM)
+	{
+		printf("  push %d\n", node->val);
+		return ;
+	}
+
+	gen(node->lhs);
+	gen(node->rhs);
+
+	printf("  pop rdi\n");
+	printf("  pop rax\n");
+
+	switch (node->kind) {
+	case ND_ADD:
+		printf("  add rax, rdi\n");
+		break ;
+	case ND_SUB:
+		printf("  sub rax, rdi\n");
+		break ;
+	case ND_MUL:
+		printf("  imul rax, rdi\n");
+		break ;
+	case ND_DIV:
+		printf("  cqo\n");
+		printf("  idiv rdi\n");
+		break ;
+	}
+	printf("  push rax\n");
 }
 
 int main(int argc, char **argv)
