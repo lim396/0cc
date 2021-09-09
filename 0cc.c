@@ -141,10 +141,10 @@ typedef enum {
 
 typedef struct Node Node;
 struct Node {
-	Nodekind kind;
-	Node *lhs;
-	Node *rhs;
-	int val;
+	Nodekind kind; //Node kind
+	Node *lhs;	   //Left-hand side
+	Node *rhs;	   //Right-hand side
+	int val;	   //if kind is ND_NUM
 };
 
 Node *new_node(Nodekind kind)
@@ -169,6 +169,7 @@ Node *new_num(int val)
 	return node;
 }
 
+Node *expr();
 Node *mul();
 Node *primary();
 
@@ -197,9 +198,9 @@ Node *mul()
 	for (;;)
 	{
 		if (consume('*'))
-			node = new_binary(ND_ADD, node, primary());
+			node = new_binary(ND_MUL, node, primary());
 		else if (consume('/'))
-			node = new_binary(ND_SUB, node, primary());
+			node = new_binary(ND_DIV, node, primary());
 		else
 			return node;
 	}
@@ -235,19 +236,23 @@ void gen(Node *node)
 	printf("  pop rax\n");
 
 	switch (node->kind) {
-	case ND_ADD:
-		printf("  add rax, rdi\n");
-		break ;
-	case ND_SUB:
-		printf("  sub rax, rdi\n");
-		break ;
-	case ND_MUL:
-		printf("  imul rax, rdi\n");
-		break ;
-	case ND_DIV:
-		printf("  cqo\n");
-		printf("  idiv rdi\n");
-		break ;
+		case ND_ADD: {
+			printf("  add rax, rdi\n");
+			break ;
+		}
+		case ND_SUB: {
+			printf("  sub rax, rdi\n");
+			break ;
+		}
+		case ND_MUL: {
+			printf("  imul rax, rdi\n");
+			break ;
+		}
+		case ND_DIV: {
+			printf("  cqo\n");
+			printf("  idiv rdi\n");
+			break ;
+		}
 	}
 	printf("  push rax\n");
 }
@@ -255,34 +260,25 @@ void gen(Node *node)
 int main(int argc, char **argv)
 {
 	if (argc != 2)
-	{
 		error("%s: invalid arguments", argv[0]);
-		return 1;
-	}
 	
 	user_input = argv[1];
-	token = tokenize(user_input);
 
+	//Tokenize and parse.
+	token = tokenize(user_input);
+	Node *node = expr();
+	
+	//Output the first part of the assembly
 	printf(".intel_syntax noprefix\n");
 	printf(".globl main\n");
 	printf("main:\n");
 	
-	//The first token must be a number
-	printf(" mov rax, %d\n", expect_number());
+	//Code generation while descending the abstract syntax tree
+	gen(node);
 
-	
-	while (!at_eof())
-	{
-		if (consume('+'))
-		{
-			printf("  add rax, %d\n", expect_number());
-			continue ;
-		}
-
-		expect('-');
-		printf("  sub rax, %d\n", expect_number());
-	}
-
+	//There should still be the value of the entire expression on the stack top,
+	//so Load it into RAX and use it as the return value from the function.
+	printf("  pop rax\n");
 	printf("  ret\n");
 	return 0;
 }
